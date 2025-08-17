@@ -1,4 +1,4 @@
-# Mytube system design document
+# Mytube system desigm document
 
 ## Overview  
 
@@ -13,6 +13,90 @@ Provide smmoth UX(user experience) with a clean interface
 Support basic social interactions :comments, likes,bullet chat, subscriptions
 
 Enable video upload，transcoding, and playback
+
+## 
+
+┌───────────────────────────────────────────────────────────────────────┐
+│                            Frontend Layer                            │
+│             Next.js + React + Tailwind CSS Application               │
+├─────────────────────────────────────────────────────────────────────┤
+│  ┌───────────────┐ ┌───────────────┐ ┌───────────────┐ ┌───────────┐  │
+│  │     Navbar    │ │    Sidebar    │ │    Pages      │ │  Mux      │  │
+│  │               │ │               │ │ (Dashboard,   │ │ Player    │  │
+│  └───────────────┘ └───────────────┘ │ Studio, etc)  │ └───────────┘  │
+│                                      └───────────────┘                │
+│  ┌───────────────────────────────┐ ┌───────────────────────────────┐  │
+│  │    tRPC Client + React Query  │ │    Clerk UI Components        │  │
+│  │      (API Data Fetching)      │ │      (AuthButton, etc)        │  │
+│  └───────────────────────────────┘ └───────────────────────────────┘  │
+└───────────────────────┬───────────────────────────────────────────────┘
+                        │ (tRPC Calls)
+                        ▼
+┌───────────────────────────────────────────────────────────────────────┐
+│                    Application / API Layer                           │
+│                 Next.js API Routes + tRPC Router                     │
+├─────────────────────────────────────────────────────────────────────┤
+│  ┌───────────────┐ ┌───────────────┐ ┌─────────────────────────────┐  │
+│  │ Clerk         │ │ Webhook       │ │ tRPC                       │  │
+│  │ Middleware    │ │ Handler       │ │ Endpoints                  │  │
+│  │ (Auth)        │ │ (Clerk/Mux)   │ │ (All Business Logic)       │  │
+│  └───────┬───────┘ └───────┬───────┘ └───────────────┬─────────────┘  │
+│          │                 │                         │                │
+└──────────┴─────────────────┴─────────────────────────┴────────────────┘
+                        ▲                 ▲                 │
+                        │ (Webhooks)      │ (Webhooks)      │ (Calls)
+┌───────────┐            │                 │                 ▼
+│  Clerk    │────────────┘                 │      ┌───────────────────────────────┐
+│ (External)│                              │      │       Business Logic Layer    │
+└───────────┘                              │      ├───────────────────────────────┤
+                                           │      │ ┌───────────────────────────┐ │
+┌───────────┐                              │      │ │    Recommendation System  │ │
+│   Mux     │──────────────────────────────┘      │ │ ├─────────────────────────┤ │
+│ (External)│                                     │ │ │  - Category-based       │ │
+└───────────┘                                     │ │ │  - Keyword-based        │ │
+                                                  │ │ │  - Hybrid               │ │
+                                                  │ │ └─────────────────────────┘ │
+                                                  │ │                             │
+                                                  │ │ ┌─────────────────────────┐ │
+                                                  │ │ │ User Management         │ │
+                                                  │ │ │ (Clerk + DB Integration)│ │
+                                                  │ │ └─────────────────────────┘ │
+                                                  │ │ ┌─────────────────────────┐ │
+                                                  │ │ │ Video Processing        │ │
+                                                  │ │ │ (Upload/Transcoding)    │ │
+                                                  │ │ └─────────────────────────┘ │
+                                                  │ │ ┌─────────────────────────┐ │
+                                                  │ │ │ Engagement Features     │ │
+                                                  │ │ │ (Likes/Comments/Subs)   │ │
+                                                  │ │ └─────────────────────────┘ │
+                                                  │ │ ┌─────────────────────────┐ │
+                                                  │ │ │ Content Organization    │ │
+                                                  │ │ │ (History/Favorites)     │ │
+                                                  │ │ └─────────────────────────┘ │
+                                                  │ └─────────────┬───────────────┘
+                                                  │               │ (Data Access)
+                                                  └───────────────┼───────────────┘
+                                                                  ▼
+┌───────────────────────────────────────────────────────────────────────┐
+│                       Data Storage Layer                             │
+├─────────────────────────────────────────────────────────────────────┤
+│  ┌───────────────────────────────┐   ┌───────────────────────────┐  │
+│  │       PostgreSQL (Neon)       │   │      Redis (Upstash)      │  │
+│  │  - User Data                  │   │  - Rate Limiting         │  │
+│  │  - Video Metadata             │   │  - Session Caching       │  │
+│  │  - Comments/Likes             │   │  - Real-time Updates     │  │
+│  │  - Playlists/History          │   │                           │  │
+│  │  (via Drizzle ORM)            │   │                           │  │
+│  └───────────────────────────────┘   └───────────────────────────┘  │
+└───────────────────────────────────────────────────────────────────────┘
+
+▲
+│ (Development Tunnel)
+└─────────┐
+      ┌───────────┐
+      │   ngrok   │
+      │ (Dev Env) │
+      └───────────┘
 
 ## Architecture Diagram 
 
@@ -248,4 +332,3 @@ Use Clerk JWTs for authentication.
  Clerk and Mux test keys are stored in `.env.local`
  Deploy via Vercel with GitHub integration
  Use separate env files for prod/dev separation
-
